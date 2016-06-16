@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
 using System.Security.Cryptography;
 using System.Text;
 using System.IO;
 using System.Data;
-using System.Configuration;
 using MySql.Data.MySqlClient;
+using System.Threading;
+using System.Globalization;
 
 
 namespace SEC2_eindopdracht_encryptie
@@ -39,10 +35,8 @@ namespace SEC2_eindopdracht_encryptie
                         drp_EncryptedMessages.DataValueField = "id";
                         drp_EncryptedMessages.DataBind();
                     }
-                    
                 }
             }
-
         }
 
         protected void btn_Verstuur_Click(object sender, EventArgs e)
@@ -55,16 +49,28 @@ namespace SEC2_eindopdracht_encryptie
             if (!naam.Equals("") && !wachtwoord.Equals("") && !geheimetekst.Equals(""))
             {
                 encryptedtekst = Encrypt(geheimetekst, wachtwoord);
-                lbl_Encrypted.Text = encryptedtekst;
-                drp_EncryptedMessages.Items.Add(encryptedtekst);
-                con.Open();
-                MySqlCommand cmd = new MySqlCommand("INSERT INTO sec2_tbl_encryptie(`naam`, `text_encrypted`) values ('" + naam + "','" + encryptedtekst + "')", con);
-                cmd.ExecuteNonQuery();
-                con.Close();
+                if (encryptedtekst.Length > 1500)
+                {
+                    lbl_Encrypted.Text = "De tekst die u probeert te encrypten past niet in de database, probeer een kleinere tekst te encrypten";
+                }
+                else
+                {
+                    lbl_Encrypted.Text = encryptedtekst;
+                    drp_EncryptedMessages.Items.Add(encryptedtekst);
+                    con.Open();
+                    MySqlCommand cmd = new MySqlCommand("INSERT INTO sec2_tbl_encryptie(`naam`, `text_encrypted`) values ('" + naam + "','" + encryptedtekst + "')", con);
+                    cmd.ExecuteNonQuery();
+                    con.Close();
+                }
             }
             else
             {
-
+                if (geheimetekst.Equals(""))
+                    lbl_Encrypted.Text = "U heeft geen tekst ingevuld.";
+                else if (wachtwoord.Equals(""))
+                    lbl_Encrypted.Text = "U heeft geen wachtwoord ingevuld.";
+                else if (naam.Equals(""))
+                    lbl_Encrypted.Text = "U heeft geen naam ingevuld.";
             }
         }
 
@@ -72,14 +78,10 @@ namespace SEC2_eindopdracht_encryptie
         {
             string wachtwoord = txt_Wachtwoord.Text;
             if (!wachtwoord.Equals(""))
-            {
                 lbl_Decrypted.Text = Decrypt(drp_EncryptedMessages.SelectedItem.Text, wachtwoord);
-            }
             else
-            {
-                ClientScript.RegisterStartupScript(this.GetType(), "wachtwoord!", "alert('" + "Geen Wachtwoord in gevuld" + "');", true);
-            }
-            
+                lbl_Decrypted.Text = "U heeft geen wachtwoord ingevuld.";
+
         }
 
         private string Encrypt(string text, string wachtwoord)
@@ -87,7 +89,7 @@ namespace SEC2_eindopdracht_encryptie
             byte[] bytes = Encoding.Unicode.GetBytes(text);
             using (Aes encryptor = Aes.Create())
             {
-                // New byte[] { 0x49.....} = de slat
+                // New byte[] { 0x49.....} = de "salt"
                 Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(wachtwoord, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
                 encryptor.Key = pdb.GetBytes(32);
                 encryptor.IV = pdb.GetBytes(16);
@@ -111,7 +113,7 @@ namespace SEC2_eindopdracht_encryptie
                 byte[] textBytes = Convert.FromBase64String(text);
                 using (Aes encryptor = Aes.Create())
                 {
-                    // New byte[] { 0x49.....} = de slat
+                    // New byte[] { 0x49.....} = de "salt"
                     Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(wachtwoord, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
                     encryptor.Key = pdb.GetBytes(32);
                     encryptor.IV = pdb.GetBytes(16);
